@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HaxNation — Events</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+    <script src="js/aws-intercept.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        canvas: '#fafafa',
+                        ink: '#0b0b0b',
+                        cyan: '#5ce1e6',
+                        danger: '#ff2a2a',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="./style.css">
+    <script src="https://unpkg.com/qrcode@1.5.1/build/qrcode.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body class="bg-canvas text-ink font-sans min-h-screen antialiased selection:bg-cyan selection:text-ink">
+
+    <div class="fixed inset-0 pointer-events-none bg-[linear-gradient(to_right,#80808020_1px,transparent_1px),linear-gradient(to_bottom,#80808020_1px,transparent_1px)] bg-[size:32px_32px]"></div>
+
+    <nav class="sticky top-0 z-50 border-b-2 border-ink bg-canvas">
+        <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+
+            <button onclick="window.showEventList()" class="flex items-center gap-3 group">
+                <span class="font-black text-2xl tracking-tighter uppercase leading-none text-ink">
+                    HAX<span class="text-cyan bg-ink px-1">NATION</span>
+                </span>
+                <span class="hidden sm:inline font-mono text-[10px] uppercase tracking-widest text-ink border-2 border-ink px-1.5 py-0.5 bg-white">
+                    EVENTS
+                </span>
+            </button>
+
+            <div id="auth-section" class="flex items-center gap-3">
+                <button id="login-btn" class="hidden font-mono uppercase tracking-widest font-bold bg-cyan text-ink border-2 border-ink px-4 py-2 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75 text-xs">
+                    Login
+                </button>
+
+                <div id="user-info" class="hidden flex items-center gap-3">
+                    <div class="flex items-center gap-2 bg-white border-2 border-ink px-3 py-1.5">
+                        <div class="w-6 h-6 bg-ink text-cyan flex items-center justify-center font-mono text-[10px] font-bold">
+                            <span id="user-avatar-initials">U</span>
+                        </div>
+                        <span id="user-name" class="hidden sm:inline font-mono text-xs text-ink font-bold uppercase"></span>
+                    </div>
+                    <button id="logout-btn" class="font-mono uppercase tracking-widest font-bold bg-white text-ink border-2 border-ink px-4 py-2 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75 text-xs">
+                        Exit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-6 py-10 relative z-10">
+
+        <div id="view-events-list">
+            <div class="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                <div>
+                    <p class="font-mono text-xs uppercase tracking-widest text-ink font-bold mb-1">[ PLATFORM STATUS: ONLINE ]</p>
+                    <h1 class="text-6xl md:text-8xl font-black tracking-tighter uppercase leading-none text-ink">
+                        Events<span class="inline-block w-4 h-[0.8em] bg-cyan animate-pulse align-baseline ml-2"></span>
+                    </h1>
+                </div>
+            </div>
+
+            <div id="my-events-section" class="hidden mb-12">
+                <h2 class="text-2xl font-bold uppercase tracking-tight border-b-2 border-ink pb-2 mb-5">My Tickets</h2>
+                <div id="my-events-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold uppercase tracking-tight border-b-2 border-ink pb-2 mb-5">Upcoming</h2>
+                <div id="events-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="col-span-full font-mono text-sm uppercase font-bold text-ink">LOADING DATA...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-event-detail" class="hidden">
+            <button onclick="window.showEventList()" class="font-mono text-xs uppercase tracking-widest font-bold bg-white text-ink border-2 border-ink px-4 py-2 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75 mb-8">
+                [ ← BACK ]
+            </button>
+
+            <div class="border-2 border-ink bg-white shadow-[8px_8px_0_0_#000] mb-8" id="det-image-wrap" style="display:none;">
+                <img id="det-image" src="" alt="Event Banner" class="w-full h-64 sm:h-80 object-cover border-b-2 border-ink filter grayscale hover:grayscale-0 transition-all duration-0">
+            </div>
+
+            <div class="mb-8 border-b-4 border-ink pb-4">
+                <h1 id="det-title" class="text-5xl font-black uppercase tracking-tighter text-ink mb-3"></h1>
+                <div class="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-sm font-bold uppercase">
+                    <span class="bg-black text-cyan px-2 py-1" id="det-date"></span>
+                    <span class="border-2 border-ink px-2 py-1 bg-white" id="det-location"></span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+                <div class="bg-white border-2 border-ink shadow-[4px_4px_0_0_#000] p-6">
+                    <h2 class="font-mono text-sm uppercase font-bold border-b-2 border-ink pb-2 mb-4 bg-canvas p-2">Details</h2>
+                    <div id="det-desc" class="font-sans text-ink leading-relaxed whitespace-pre-wrap text-base"></div>
+                </div>
+
+                <div>
+                    <div id="action-card" class="bg-white border-2 border-ink shadow-[4px_4px_0_0_#000] p-5 sticky top-24">
+                        <div id="action-loading" class="py-6 text-center font-mono font-bold uppercase text-sm">
+                            Checking clearance...
+                        </div>
+
+                        <div id="action-register" class="hidden">
+                            <div class="flex items-center justify-between font-mono text-xs uppercase font-bold border-b-2 border-ink pb-3 mb-4">
+                                <span>Capacity</span>
+                                <span id="det-capacity" class="bg-ink text-white px-2 py-0.5"></span>
+                            </div>
+                            <div id="det-questions-container" class="space-y-4 mb-4"></div>
+                            <button id="btn-register" class="w-full font-mono uppercase tracking-widest font-bold bg-cyan text-ink border-2 border-ink px-6 py-3 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75 mt-2">
+                                Execute Registration
+                            </button>
+                        </div>
+
+                        <div id="action-certificate-only" class="hidden py-4 text-center">
+                            <button id="btn-get-certificate" class="w-full font-mono uppercase tracking-widest font-bold bg-cyan text-ink border-2 border-ink px-6 py-3 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75">
+                                Access Certificate
+                            </button>
+                        </div>
+
+                        <div id="action-closed" class="hidden py-4 text-center border-2 border-danger bg-canvas p-4">
+                            <p class="font-mono text-danger font-bold uppercase">System Locked</p>
+                            <p class="font-mono text-xs text-ink mt-2">Registrations closed.</p>
+                        </div>
+
+                        <div id="action-ticket" class="hidden flex-col gap-4">
+                            <div class="bg-ink text-cyan border-2 border-ink p-3 font-mono text-xs font-bold uppercase flex justify-between">
+                                <span>Status:</span> <span>[ REGISTERED ]</span>
+                            </div>
+                            <button id="btn-show-ticket" class="w-full font-mono uppercase font-bold bg-white text-ink border-2 border-ink px-4 py-3 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75">
+                                Access Ticket
+                            </button>
+                            <div id="post-event-actions" class="hidden flex-col gap-3 mt-4 pt-4 border-t-2 border-ink">
+                                <button id="btn-feedback" class="w-full font-mono uppercase font-bold bg-white text-ink border-2 border-ink px-4 py-2 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75">Submit Data</button>
+                                <button id="btn-certificate" class="w-full font-mono uppercase font-bold bg-cyan text-ink border-2 border-ink px-4 py-2 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75" style="display:none;">Download Credential</button>
+                            </div>
+                            <button id="btn-cancel" class="mt-2 font-mono text-xs uppercase text-danger font-bold hover:bg-danger hover:text-white border-2 border-transparent hover:border-danger p-2 transition-none duration-0 w-full text-center">
+                                Terminate Registration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="ticket-modal" class="hidden fixed inset-0 z-[9000] bg-black/90 flex items-center justify-center p-4">
+        <div class="bg-white border-4 border-ink shadow-[12px_12px_0_0_#5ce1e6] p-0 max-w-sm w-full relative">
+            <div class="bg-ink text-cyan p-4 font-mono flex justify-between uppercase font-bold">
+                <span>[ E-TICKET ]</span>
+                <button onclick="window.toggleModal('ticket-modal', false)" class="hover:text-white transition-none">X</button>
+            </div>
+            <div class="p-6 text-center">
+                <p id="ticket-event-name" class="font-black text-xl uppercase mb-6 text-ink"></p>
+                <div class="inline-block border-4 border-ink p-2 bg-white">
+                    <canvas id="qr-canvas"></canvas>
+                </div>
+                <p class="font-mono text-xs font-bold uppercase mt-4 text-ink">Scan at terminal</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="msg-modal" class="hidden fixed inset-0 z-[9000] bg-black/90 flex items-center justify-center p-4">
+        <div class="bg-white border-4 border-ink shadow-[12px_12px_0_0_#ff2a2a] p-0 max-w-sm w-full relative">
+            <div class="bg-ink text-danger p-4 font-mono flex justify-between uppercase font-bold">
+                <span id="msg-title">SYSTEM ALERT</span>
+                <button onclick="window.toggleModal('msg-modal', false)" class="hover:text-white transition-none">X</button>
+            </div>
+            <div class="p-6">
+                <p id="msg-body" class="font-mono text-sm text-ink mb-6"></p>
+                <button onclick="window.toggleModal('msg-modal', false)" class="w-full font-mono uppercase tracking-widest font-bold bg-white text-ink border-2 border-ink px-4 py-3 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75">ACKNOWLEDGE</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./CertificateGenerator.js"></script>
+    <script type="module" src="./js/app.js"></script>
+</body>
+</html>

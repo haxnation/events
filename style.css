@@ -1,0 +1,32 @@
+/* ═══════════════════════════════════════════════════
+   HaxNation Events — Utilitarian Cyber-Minimalism
+═══════════════════════════════════════════════════ */
+
+/* Harsh Selection Override */
+::selection {
+    background-color: #5ce1e6;
+    color: #0b0b0b;
+}
+::-moz-selection {
+    background-color: #5ce1e6;
+    color: #0b0b0b;
+}
+
+/* Base resets & utilities */
+.hidden { display: none !important; }
+
+/* Brutalist Scrollbar */
+::-webkit-scrollbar { 
+    width: 12px; 
+}
+::-webkit-scrollbar-track { 
+    background: #fafafa; 
+    border-left: 2px solid #0b0b0b;
+}
+::-webkit-scrollbar-thumb { 
+    background: #0b0b0b; 
+    border-left: 2px solid #0b0b0b;
+}
+::-webkit-scrollbar-thumb:hover { 
+    background: #5ce1e6; 
+}
