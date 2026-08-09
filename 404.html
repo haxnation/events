@@ -31,6 +31,10 @@
     <link rel="stylesheet" href="/style.css">
     <script src="https://unpkg.com/qrcode@1.5.1/build/qrcode.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png">
+    <link rel="manifest" href="/favicons/site.webmanifest">
 </head>
 <body class="bg-canvas text-ink font-sans min-h-screen antialiased selection:bg-cyan selection:text-ink">
 
@@ -41,7 +45,7 @@
 
             <button onclick="window.navigate('/')" class="flex items-center gap-3 group">
                 <span class="font-black text-2xl tracking-tighter uppercase leading-none text-ink">
-                    HAX<span class="text-cyan bg-ink px-1">NATION</span>
+                    <img src="/logo.png" alt="Haxnation Events" class="h-8 w-auto">
                 </span>
                 <span class="hidden sm:inline font-mono text-[10px] uppercase tracking-widest text-ink border-2 border-ink px-1.5 py-0.5 bg-white">
                     EVENTS
@@ -98,15 +102,19 @@
                 [ ← BACK ]
             </button>
 
-            <div class="border-2 border-ink bg-white shadow-[8px_8px_0_0_#000] mb-8" id="det-image-wrap" style="display:none;">
-                <img id="det-image" src="" alt="Event Banner" class="w-full h-64 sm:h-80 object-cover border-b-2 border-ink transition-all duration-0">
-            </div>
+            <div class="flex flex-col md:flex-row gap-8 mb-8">
+                <div class="shrink-0 w-full md:w-72 lg:w-96" id="det-image-wrap" style="display:none;">
+                    <div class="border-2 border-ink bg-white shadow-[8px_8px_0_0_#000] overflow-hidden aspect-square">
+                        <img id="det-image" src="" alt="Event Banner" class="w-full h-full object-contain bg-canvas transition-all duration-200">
+                    </div>
+                </div>
 
-            <div class="mb-8 border-b-4 border-ink pb-4">
-                <h1 id="det-title" class="text-5xl font-black uppercase tracking-tighter text-ink mb-3"></h1>
-                <div class="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-sm font-bold uppercase">
-                    <span class="bg-black text-cyan px-2 py-1" id="det-date"></span>
-                    <span class="border-2 border-ink px-2 py-1 bg-white" id="det-location"></span>
+                <div class="flex flex-col justify-end border-b-4 border-ink pb-4 flex-grow">
+                    <h1 id="det-title" class="text-4xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter text-ink mb-4 leading-none break-words"></h1>
+                    <div class="flex flex-wrap items-center gap-x-5 gap-y-3 font-mono text-sm font-bold uppercase mt-auto">
+                        <span class="bg-black text-cyan px-3 py-1.5 shadow-[2px_2px_0_0_#000]" id="det-date"></span>
+                        <span class="border-2 border-ink px-3 py-1.5 bg-white shadow-[2px_2px_0_0_#000]" id="det-location"></span>
+                    </div>
                 </div>
             </div>
 
@@ -196,5 +204,59 @@
 
     <script src="/CertificateGenerator.js"></script>
     <script type="module" src="/js/app.js"></script>
+
+<!-- PWA Install Prompt & Service Worker -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(reg => {
+                console.log('SW registered!', reg);
+            }).catch(err => console.log('SW registration failed', err));
+        });
+    }
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        showPwaToast();
+    });
+
+    function showPwaToast() {
+        if (document.getElementById('pwa-install-toast')) return;
+        
+        const toastHtml = `
+            <div id="pwa-install-toast" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 99999; background: #fff; border: 2px solid #0b0b0b; box-shadow: 4px 4px 0 0 #0b0b0b; padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 90vw; width: 350px; font-family: 'JetBrains Mono', monospace, sans-serif;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="/logo.png" alt="Logo" style="width: 32px; height: 32px; object-fit: contain;">
+                    <div>
+                        <h4 style="margin: 0; font-size: 14px; font-weight: bold; color: #0b0b0b;">Install Haxnation Events</h4>
+                        <p style="margin: 4px 0 0; font-size: 11px; color: #666;">Add to Home Screen</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-pwa-dismiss" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
+                    <button id="btn-pwa-install" style="background: #5ce1e6; color: #0b0b0b; border: 2px solid #0b0b0b; padding: 6px 12px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 2px 2px 0 0 #0b0b0b;">Install</button>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', toastHtml);
+
+        document.getElementById('btn-pwa-dismiss').addEventListener('click', () => {
+            document.getElementById('pwa-install-toast').remove();
+        });
+
+        document.getElementById('btn-pwa-install').addEventListener('click', async () => {
+            document.getElementById('pwa-install-toast').remove();
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response: ${outcome}`);
+                deferredPrompt = null;
+            }
+        });
+    }
+</script>
+
 </body>
 </html>
