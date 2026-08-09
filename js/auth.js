@@ -46,15 +46,8 @@ export function updateAuthUI() {
     }
 }
 
-export async function login() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, { credentials: 'include' });
-        const resData  = await response.json();
-        const data     = resData.data || resData;
-        if (data.authorizationUrl) window.location.href = data.authorizationUrl;
-    } catch (error) {
-        alert('Login failed. Please try again.');
-    }
+export function login() {
+    window.location.href = `${API_BASE_URL}/auth/login`;
 }
 
 export async function logout() {
