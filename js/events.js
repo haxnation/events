@@ -6,7 +6,6 @@ export function showEventList() {
     document.getElementById('view-events-list')?.classList.remove('hidden');
     document.getElementById('view-event-detail')?.classList.add('hidden');
     state.currentEventDetails = null;
-    window.history.pushState(null, '', '/');
     fetchEvents();
     if (state.currentUser) fetchMyEvents();
 }
@@ -117,8 +116,8 @@ function createEventCard(evt, isRegistered = false) {
     div.className = 'bg-white border-2 border-ink shadow-[4px_4px_0_0_#000] flex flex-col cursor-pointer hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] transition-all duration-0 rounded-none group';
 
     div.innerHTML = `
-        <div class="border-b-2 border-ink overflow-hidden aspect-video bg-canvas">
-            <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(evt.title)}" class="w-full h-full object-cover filter grayscale group-hover:grayscale-0 transition-all duration-0">
+        <div class="border-b-2 border-ink overflow-hidden aspect-square bg-canvas">
+            <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(evt.title)}" class="w-full h-full object-contain transition-all duration-200">
         </div>
         <div class="p-4 flex flex-col flex-1 gap-4 card-body">
             <div class="flex items-center justify-between">
@@ -139,9 +138,9 @@ function createEventCard(evt, isRegistered = false) {
 
     div.querySelector('.btn-details').addEventListener('click', (e) => {
         e.stopPropagation();
-        openEventDetails(slug);
+        window.navigate(`/?event=${slug}`);
     });
-    div.addEventListener('click', () => openEventDetails(slug));
+    div.addEventListener('click', () => window.navigate(`/?event=${slug}`));
 
     return div;
 }
@@ -166,7 +165,6 @@ export async function openEventDetails(identifier) {
     if (!evt) return;
 
     const slug = evt.slug || evt.PK.split('#')[1];
-    window.history.pushState({ eventId: slug }, '', `?event=${slug}`);
 
     const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
     setText('det-title', evt.title);
@@ -262,7 +260,7 @@ function setActionState(uiState, statusLabel = '', checkedIn = false, eventDetai
         show('action-certificate-only');
         const btn = document.getElementById('btn-get-certificate');
         if (btn) btn.onclick = () => {
-            window.location.href = `/certificate?eventId=${eventDetails.PK.split('#')[1]}`;
+            window.navigate(`/certificate?eventId=${eventDetails.PK.split('#')[1]}`);
         };
     }
     else if (uiState === 'ticket') {
@@ -360,5 +358,5 @@ export async function handleCancelTicket() {
 
 export async function handleRequestCertificate(event) {
     const eventId = event.PK.split('#')[1];
-    window.location.href = `/certificate?eventId=${eventId}`;
+    window.navigate(`/certificate?eventId=${eventId}`);
 }

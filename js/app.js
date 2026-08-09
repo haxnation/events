@@ -4,14 +4,7 @@ import { fetchEvents, fetchMyEvents, handleRegisterConfirm, handleCancelTicket, 
 import { toggleModal } from './utils.js';
 import { renderCheckoutPage, renderUnifiedPage } from './certificate.js';
 
-document.addEventListener('DOMContentLoaded', async () => {
-    window.showEventList = showEventList;
-    window.toggleModal   = toggleModal;
-
-    setupListeners();
-    await checkAuth();
-    updateAuthUI();
-
+export async function router() {
     const searchParams = new URLSearchParams(window.location.search);
     const eventSlug    = searchParams.get('event');
     const pathname     = window.location.pathname;
@@ -22,7 +15,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (pathname.includes('/certificate/verify/') || (pathname.includes('/certificate/') && !pathname.endsWith('/certificate'))) {
         let certId = pathname.split('/').pop();
         if (!certId && pathname.endsWith('/')) {
-            // handle trailing slash
             const parts = pathname.split('/');
             certId = parts[parts.length - 2];
         }
@@ -31,9 +23,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (eventSlug) {
         await openEventDetails(eventSlug);
     } else {
-        fetchEvents();
-        if (state.currentUser) fetchMyEvents();
+        showEventList();
     }
+}
+
+export function navigate(url) {
+    window.history.pushState({}, '', url);
+    router();
+}
+
+window.addEventListener('popstate', router);
+
+document.addEventListener('click', e => {
+    const link = e.target.closest('a');
+    if (link && link.matches('a.nav-link')) {
+        e.preventDefault();
+        navigate(link.getAttribute('href'));
+    }
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+    window.showEventList = showEventList;
+    window.toggleModal   = toggleModal;
+
+    setupListeners();
+    await checkAuth();
+    updateAuthUI();
+
+    await router();
 });
 
 function setupListeners() {

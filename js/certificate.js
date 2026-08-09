@@ -264,7 +264,7 @@ export async function renderUnifiedPage(certId) {
                 const generator = new CertificateGenerator();
                 generator.corsProxyUrl = 'https://api.haxnation.org/events/api/events/proxy?url=';
                 const base64Image = await generator.generate(template, data);
-                imgHtml = `<img src="${base64Image}" class="w-full h-auto border-4 border-ink shadow-[8px_8px_0_0_#000] mb-8 filter grayscale hover:grayscale-0 transition-all duration-0" alt="Certificate Artifact" />`;
+                imgHtml = `<img src="${base64Image}" class="w-full h-auto border-4 border-ink shadow-[8px_8px_0_0_#000] mb-8 transition-all duration-0" alt="Certificate Artifact" />`;
             } catch (err) {
                 console.error("Failed to render certificate visual:", err);
             }
