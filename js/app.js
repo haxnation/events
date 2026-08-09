@@ -31,6 +31,7 @@ export function navigate(url) {
     window.history.pushState({}, '', url);
     router();
 }
+window.navigate = navigate;
 
 window.addEventListener('popstate', router);
 
