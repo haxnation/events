@@ -7,7 +7,9 @@ import { renderCheckoutPage, renderUnifiedPage } from './certificate.js';
 export async function router() {
     const searchParams = new URLSearchParams(window.location.search);
     const eventSlug    = searchParams.get('event');
-    const pathname     = window.location.pathname;
+    
+    let pathname = window.location.hash.slice(1);
+    if (!pathname || pathname === '') pathname = '/';
 
     if (pathname === '/certificate' || pathname.endsWith('/certificate')) {
         document.body.innerHTML = '<div id="app"></div>';
@@ -28,11 +30,11 @@ export async function router() {
 }
 
 export function navigate(url) {
-    window.history.pushState({}, '', url);
-    router();
+    window.location.hash = url.startsWith('#') ? url : '#' + url;
 }
 window.navigate = navigate;
 
+window.addEventListener('hashchange', router);
 window.addEventListener('popstate', router);
 
 document.addEventListener('click', e => {

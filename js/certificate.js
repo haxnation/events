@@ -58,7 +58,9 @@ export async function renderCheckoutPage() {
                 return;
             } catch (e) {
                 console.error("Payment verification failed", e);
-                window.history.replaceState({}, '', window.location.pathname + '?eventId=' + eventId);
+                const currentHash = window.location.hash;
+                const newHash = currentHash.includes('?') ? currentHash + '&eventId=' + eventId : currentHash + '?eventId=' + eventId;
+                window.location.hash = newHash;
                 // allow it to fall through and render the page normally
             }
         }
