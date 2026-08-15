@@ -259,19 +259,6 @@ export async function renderUnifiedPage(certId) {
             } catch(e) {}
         }
 
-        // Generate the image to display it in the UI
-        let imgHtml = '';
-        if (template && data) {
-            try {
-                const generator = new CertificateGenerator();
-                generator.corsProxyUrl = 'https://api.haxnation.org/events/api/events/proxy?url=';
-                const base64Image = await generator.generate(template, data);
-                imgHtml = `<img src="${base64Image}" class="w-full h-auto border-4 border-ink shadow-[8px_8px_0_0_#000] mb-8 transition-all duration-0" alt="Certificate Artifact" />`;
-            } catch (err) {
-                console.error("Failed to render certificate visual:", err);
-            }
-        }
-
         const certificateLink = `${window.location.origin}/certificate/verify/${certId}`;
 
         container.innerHTML = `
@@ -284,7 +271,6 @@ export async function renderUnifiedPage(certId) {
                     </div>
                     
                     <div class="p-8 border-b-4 border-ink bg-[linear-gradient(to_right,#80808020_1px,transparent_1px),linear-gradient(to_bottom,#80808020_1px,transparent_1px)] bg-[size:32px_32px]">
-                        ${imgHtml}
 
                         <div class="bg-white border-4 border-ink p-6 shadow-[4px_4px_0_0_#000]">
                             <p class="font-mono text-[10px] uppercase font-bold tracking-widest text-ink mb-1 border-b-2 border-ink pb-1">SUBJECT ALIAS</p>
@@ -360,25 +346,6 @@ export async function renderUnifiedPage(certId) {
                             document.body.removeChild(link);
                             
                             status.textContent = '[ SUCCESS: TRANSFER COMPLETE (SERVER) ]';
-                            status.style.color = '#0b0b0b';
-                            btn.textContent    = 'RE-DOWNLOAD';
-                        } else if (dlRes && dlRes.template && dlRes.data) {
-                            let templateObj = dlRes.template;
-                            if (typeof templateObj === 'string') {
-                                try { templateObj = JSON.parse(templateObj); } catch(e) {}
-                            }
-                            const generator = new CertificateGenerator();
-                            generator.corsProxyUrl = 'https://api.haxnation.org/events/api/events/proxy?url=';
-                            const base64Image = await generator.generate(templateObj, dlRes.data);
-                            
-                            const link = document.createElement('a');
-                            link.href = base64Image;
-                            link.download = `certificate_${fetchedEventId}.png`;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            
-                            status.textContent = '[ SUCCESS: TRANSFER COMPLETE ]';
                             status.style.color = '#0b0b0b';
                             btn.textContent    = 'RE-DOWNLOAD';
                         } else {
