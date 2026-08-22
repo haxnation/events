@@ -42,6 +42,11 @@ export async function fetchMyEvents() {
                         handleRequestCertificate(evt);
                     };
                     card.querySelector('.card-body').appendChild(btn);
+
+                    const subText = document.createElement('span');
+                    subText.className = 'font-mono text-[9px] text-neutral-600 font-bold uppercase text-center block mt-1';
+                    subText.textContent = 'Valid & stored for 2 years from issue';
+                    card.querySelector('.card-body').appendChild(subText);
                 }
                 grid.appendChild(card);
             });

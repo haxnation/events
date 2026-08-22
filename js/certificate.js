@@ -88,6 +88,11 @@ export async function renderCheckoutPage() {
                         </div>
 
                         <div class="p-6 bg-canvas">
+                            <div class="mb-6 bg-white border-2 border-ink p-3 shadow-[2px_2px_0_0_#000] flex items-center gap-2">
+                                <span class="font-mono text-xs text-ink font-bold uppercase">⏳ RETENTION:</span>
+                                <span class="font-mono text-xs text-neutral-700 font-bold">Certificates are valid and stored for 2 years from date of issue.</span>
+                            </div>
+
                             <div class="mb-6 bg-white border-4 border-ink p-4 shadow-[4px_4px_0_0_#000]">
                                 <p class="font-mono text-[10px] uppercase tracking-widest font-bold text-ink mb-2">ISSUANCE TARGET</p>
                                 <p class="font-black text-xl text-ink uppercase mb-2">${escapeHtml(userName || 'UNKNOWN')}</p>
@@ -251,7 +256,7 @@ export async function renderUnifiedPage(certId) {
 
         if (!resData.success) throw new Error(resData.error || 'INVALID CREDENTIAL');
 
-        let { owner, event, template, data, isOwner, eventId: fetchedEventId } = resData.data;
+        let { owner, event, template, data, isOwner, eventId: fetchedEventId, issuedAt, expiresAt } = resData.data;
 
         if (typeof template === 'string') {
             try {
@@ -260,6 +265,12 @@ export async function renderUnifiedPage(certId) {
         }
 
         const certificateLink = `${window.location.origin}/certificate/verify/${certId}`;
+        const formattedExpires = expiresAt 
+            ? new Date(expiresAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' }) 
+            : '2 Years from Issue Date';
+        const formattedIssued = issuedAt 
+            ? new Date(issuedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' }) 
+            : null;
 
         container.innerHTML = `
             <div class="min-h-screen bg-canvas flex flex-col items-center p-6 py-12">
@@ -267,7 +278,7 @@ export async function renderUnifiedPage(certId) {
                     
                     <div class="bg-ink text-cyan p-4 font-mono font-bold flex justify-between items-center uppercase border-b-4 border-ink">
                         <span class="tracking-widest">SYSTEM VERIFICATION</span>
-                        <span class="bg-cyan text-ink px-2 py-0.5 text-xs shadow-[2px_2px_0_0_#fff]">STATUS: VALID</span>
+                        <span class="bg-cyan text-ink px-2 py-0.5 text-xs shadow-[2px_2px_0_0_#fff]">STATUS: VALID (2-YR)</span>
                     </div>
                     
                     <div class="p-8 border-b-4 border-ink bg-[linear-gradient(to_right,#80808020_1px,transparent_1px),linear-gradient(to_bottom,#80808020_1px,transparent_1px)] bg-[size:32px_32px]">
@@ -277,11 +288,26 @@ export async function renderUnifiedPage(certId) {
                             <p class="font-black text-2xl text-ink mb-6 uppercase">${escapeHtml(owner || 'UNKNOWN')}</p>
                             
                             <p class="font-mono text-[10px] uppercase font-bold tracking-widest text-ink mb-1 border-b-2 border-ink pb-1">EVENT DESIGNATION</p>
-                            <p class="font-black text-xl text-ink uppercase">${escapeHtml(event || 'UNKNOWN')}</p>
+                            <p class="font-black text-xl text-ink uppercase mb-6">${escapeHtml(event || 'UNKNOWN')}</p>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t-2 border-ink font-mono text-xs">
+                                <div>
+                                    <span class="text-neutral-600 uppercase font-bold text-[10px] block">VALIDITY PERIOD</span>
+                                    <span class="font-bold text-ink">${escapeHtml(formattedExpires)}</span>
+                                </div>
+                                <div>
+                                    <span class="text-neutral-600 uppercase font-bold text-[10px] block">RETENTION POLICY</span>
+                                    <span class="font-bold text-ink">Stored & Valid for 2 Years</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <div class="p-6 bg-canvas">
+                        <div class="mb-4 p-3 bg-white border-2 border-ink text-xs font-mono text-neutral-700 font-bold">
+                            ℹ️ Note: Certificates are stored and valid for 2 years from date of issue.
+                        </div>
+
                         ${isOwner ? `
                             <div class="flex flex-col sm:flex-row items-center gap-4 mb-4">
                                 <button id="btn-download" class="w-full sm:w-auto flex-1 font-mono uppercase tracking-widest font-bold bg-cyan text-ink border-2 border-ink px-6 py-4 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75 text-center">
@@ -369,6 +395,7 @@ export async function renderUnifiedPage(certId) {
                 <div class="bg-white border-4 border-ink shadow-[12px_12px_0_0_#ff2a2a] p-8 max-w-md w-full text-center">
                     <h2 class="text-3xl font-black uppercase tracking-tight text-ink mb-2 border-b-4 border-ink pb-2">VERIFICATION FAILED</h2>
                     <p class="font-mono text-sm my-6 text-ink font-bold">[ ${escapeHtml(e.message).toUpperCase()} ]</p>
+                    <p class="font-mono text-xs text-neutral-600 font-bold mb-6">Note: Certificates are valid and stored for 2 years from the date of issue.</p>
                     <a href="/" class="inline-block font-mono uppercase tracking-widest font-bold bg-white text-ink border-2 border-ink px-6 py-3 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75">
                         RETURN
                     </a>
