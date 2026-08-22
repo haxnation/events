@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './config.js';
+
 export function toggleModal(id, show) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -23,7 +25,7 @@ export function escapeHtml(text) {
         .replace(/'/g,  '&#39;');
 }
 
-// Generic authenticated API helper (used by certificate.js)
+// Generic authenticated API helper (used across views)
 export async function api(endpoint, method = 'GET', body = null) {
     const options = {
         method,
@@ -34,7 +36,7 @@ export async function api(endpoint, method = 'GET', body = null) {
         options.headers['Content-Type'] = 'application/json';
         options.body = JSON.stringify(body);
     }
-    const response = await fetch(`https://api.haxnation.org/events/api${endpoint}`, options);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
     if (!response.ok) {
         const err = await response.json().catch(() => ({}));
         throw new Error(err.error || err.message || `HTTP ${response.status}`);
