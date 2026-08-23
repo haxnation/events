@@ -1,4 +1,5 @@
 import { api, escapeHtml } from './utils.js';
+import { API_BASE_URL } from './config.js';
 
 export async function renderCheckoutPage() {
     const params = new URLSearchParams(window.location.search);
@@ -249,7 +250,7 @@ export async function renderUnifiedPage(certId) {
         </div>`;
 
     try {
-        const res = await fetch(`https://api.haxnation.org/events/api/events/certificate/verify/${certId}`, {
+        const res = await fetch(`${API_BASE_URL}/events/certificate/verify/${encodeURIComponent(certId)}`, {
             credentials: 'include' // include cookies so OptionalAuth works
         });
         const resData = await res.json();
