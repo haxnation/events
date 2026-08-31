@@ -5,21 +5,19 @@ import { toggleModal } from './utils.js';
 import { renderCheckoutPage, renderUnifiedPage } from './certificate.js';
 
 export async function router() {
-    const searchParams = new URLSearchParams(window.location.search);
-    const eventSlug    = searchParams.get('event');
-    
-    let pathname = window.location.hash.slice(1);
+    const rawPath = window.location.hash ? window.location.hash.slice(1) : window.location.pathname;
+    let pathname = (rawPath || '/').split('?')[0];
     if (!pathname || pathname === '') pathname = '/';
+
+    const rawQuery = window.location.search ? window.location.search.slice(1) : (window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '');
+    const searchParams = new URLSearchParams(rawQuery);
+    const eventSlug = searchParams.get('event');
 
     if (pathname === '/certificate' || pathname.endsWith('/certificate')) {
         document.body.innerHTML = '<div id="app"></div>';
         await renderCheckoutPage();
     } else if (pathname.includes('/certificate/verify/') || (pathname.includes('/certificate/') && !pathname.endsWith('/certificate'))) {
-        let certId = pathname.split('/').pop();
-        if (!certId && pathname.endsWith('/')) {
-            const parts = pathname.split('/');
-            certId = parts[parts.length - 2];
-        }
+        let certId = pathname.split('/').filter(Boolean).pop();
         document.body.innerHTML = '<div id="app"></div>';
         await renderUnifiedPage(certId);
     } else if (eventSlug) {

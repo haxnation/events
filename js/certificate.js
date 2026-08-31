@@ -2,7 +2,8 @@ import { api, escapeHtml } from './utils.js';
 import { API_BASE_URL } from './config.js';
 
 export async function renderCheckoutPage() {
-    const params = new URLSearchParams(window.location.search);
+    const rawParams = window.location.search ? window.location.search.slice(1) : (window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '');
+    const params = new URLSearchParams(rawParams);
     const eventId = params.get('eventId');
     const container = document.getElementById('app');
 
