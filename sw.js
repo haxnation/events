@@ -1,7 +1,8 @@
-const CACHE_NAME = 'haxnation-cache-v2';
+const CACHE_NAME = 'haxnation-cache-v3';
 const urlsToCache = [
   '/',
   '/index.html',
+  '/404.html',
   '/logo.png',
   '/favicons/site.webmanifest',
   '/favicons/android-chrome-192x192.png',

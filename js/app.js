@@ -4,25 +4,56 @@ import { fetchEvents, fetchMyEvents, handleRegisterConfirm, handleCancelTicket, 
 import { toggleModal } from './utils.js';
 import { renderCheckoutPage, renderUnifiedPage } from './certificate.js';
 
-export async function router() {
-    const rawPath = window.location.hash ? window.location.hash.slice(1) : window.location.pathname;
-    let pathname = (rawPath || '/').split('?')[0];
-    if (!pathname || pathname === '') pathname = '/';
+function getRoute() {
+    // Prefer hash route (SPA canonical: #/certificate/verify/:id).
+    // Fall back to pretty pathname for old share links / direct loads.
+    const hash = window.location.hash || '';
+    const hashPath = hash.startsWith('#') ? hash.slice(1) : '';
+    const pathFromHash = hashPath.split('?')[0];
+    const queryFromHash = hashPath.includes('?') ? hashPath.split('?').slice(1).join('?') : '';
 
-    const rawQuery = window.location.search ? window.location.search.slice(1) : (window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '');
+    let pathname;
+    let rawQuery;
+    if (pathFromHash && pathFromHash !== '/') {
+        pathname = pathFromHash || '/';
+        rawQuery = queryFromHash || window.location.search.slice(1);
+    } else {
+        pathname = (window.location.pathname || '/').split('?')[0];
+        rawQuery = window.location.search.slice(1) || queryFromHash;
+    }
+    if (!pathname || pathname === '') pathname = '/';
+    return { pathname, rawQuery };
+}
+
+export async function router() {
+    const { pathname, rawQuery } = getRoute();
     const searchParams = new URLSearchParams(rawQuery);
     const eventSlug = searchParams.get('event');
 
     if (pathname === '/certificate' || pathname.endsWith('/certificate')) {
-        document.body.innerHTML = '<div id="app"></div>';
+        if (!document.getElementById('app')) document.body.innerHTML = '<div id="app"></div>';
         await renderCheckoutPage();
     } else if (pathname.includes('/certificate/verify/') || (pathname.includes('/certificate/') && !pathname.endsWith('/certificate'))) {
         let certId = pathname.split('/').filter(Boolean).pop();
-        document.body.innerHTML = '<div id="app"></div>';
+        // strip any trailing query fragments that slipped in
+        certId = (certId || '').split('?')[0].split('#')[0];
+        if (!document.getElementById('app')) document.body.innerHTML = '<div id="app"></div>';
         await renderUnifiedPage(certId);
     } else if (eventSlug) {
+        // If we previously replaced <body> with #app (cert pages), a
+        // hash-nav back to event list needs a full reload to restore DOM.
+        if (!document.getElementById('view-events-list')) {
+            window.location.href = '/#/?event=' + encodeURIComponent(eventSlug);
+            window.location.reload();
+            return;
+        }
         await openEventDetails(eventSlug);
     } else {
+        if (!document.getElementById('view-events-list')) {
+            window.location.href = '/#/';
+            window.location.reload();
+            return;
+        }
         showEventList();
     }
 }
