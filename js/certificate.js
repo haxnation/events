@@ -298,6 +298,30 @@ function extraDataRows(data, seen) {
         }).join('');
 }
 
+function brandedFallbackHTML(holderName, eventName, certIdResolved, formattedIssued) {
+    return `
+        <div class="border-2 border-ink bg-white shadow-[4px_4px_0_0_#000] overflow-hidden">
+            <div class="relative bg-ink text-white p-8 sm:p-12 text-center overflow-hidden">
+                <div class="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(to_right,#5ce1e620_1px,transparent_1px),linear-gradient(to_bottom,#5ce1e620_1px,transparent_1px)] bg-[size:28px_28px]"></div>
+                <div class="absolute top-0 left-0 right-0 h-2 bg-cyan"></div>
+                <div class="absolute bottom-0 left-0 right-0 h-2 bg-cyan"></div>
+                <p class="relative font-mono text-[10px] tracking-[0.35em] uppercase text-cyan font-bold mb-3">Haxnation · Verified Credential</p>
+                <h3 class="relative font-black uppercase tracking-tight text-3xl sm:text-5xl leading-none mb-2">Certificate</h3>
+                <p class="relative font-mono text-[11px] uppercase tracking-widest text-neutral-300 mb-8">of participation / achievement</p>
+                <p class="relative font-mono text-[10px] uppercase tracking-widest text-neutral-400 mb-2">Proudly presented to</p>
+                <p class="relative font-black uppercase text-2xl sm:text-4xl text-cyan break-words mb-6">${escapeHtml(holderName)}</p>
+                <div class="relative inline-block border-2 border-cyan px-6 py-2 mb-6">
+                    <p class="font-mono text-xs uppercase tracking-widest font-bold text-white">${escapeHtml(eventName)}</p>
+                </div>
+                <div class="relative flex items-center justify-center gap-6 font-mono text-[10px] uppercase text-neutral-300">
+                    <span>ID · ${escapeHtml(String(certIdResolved).slice(0, 12))}</span>
+                    <span class="w-1 h-1 bg-cyan inline-block"></span>
+                    <span>${escapeHtml(formattedIssued)}</span>
+                </div>
+            </div>
+        </div>`;
+}
+
 export async function renderUnifiedPage(certId) {
     const container = document.getElementById('app');
 
