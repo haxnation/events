@@ -240,12 +240,14 @@ export async function renderCheckoutPage() {
 
 
 function resolveCertImage(payload, template, data) {
-    // Try every plausible key the admin/events backends might use.
+    // Backend generates the cert and hands the frontend loadable URLs only —
+    // the frontend never touches S3. Just collect candidate URL fields.
     const candidates = [];
     const push = (v) => {
         if (typeof v === 'string' && v.trim()) candidates.push(v.trim());
     };
     if (payload) {
+        push(payload.backgroundImage); push(payload.backgroundImageUrl);
         push(payload.imageUrl); push(payload.certificateUrl); push(payload.pdfPreviewUrl);
         push(payload.previewUrl); push(payload.dataUrl); push(payload.image);
     }
@@ -341,13 +343,15 @@ export async function renderUnifiedPage(certId) {
         const holderName = (data && typeof data === 'object' && (data.holderName || data.name)) || owner || 'UNKNOWN';
         const eventName = (data && typeof data === 'object' && (data.eventName || data.event)) || event || 'UNKNOWN';
 
+        const fallbackHtml = brandedFallbackHTML(holderName, eventName, certIdResolved, formattedIssued);
         let certVisualHtml;
         if (visual && visual.kind === 'image') {
             certVisualHtml = `
-                <div class="border-2 border-ink bg-white shadow-[4px_4px_0_0_#000] overflow-hidden">
-                    <img src="${escapeHtml(visual.url)}" alt="Issued certificate for ${escapeHtml(holderName)}"
+                <div class="border-2 border-ink bg-white shadow-[4px_4px_0_0_#000] overflow-hidden" data-cert-visual>
+                    <img id="cert-visual-img" src="${escapeHtml(visual.url)}" alt="Issued certificate for ${escapeHtml(holderName)}"
                          class="w-full h-auto object-contain block" loading="eager" referrerpolicy="no-referrer" />
-                </div>`;
+                </div>
+                <div id="cert-visual-fallback" class="hidden">${fallbackHtml}</div>`;
         } else if (visual && visual.kind === 'pdf') {
             certVisualHtml = `
                 <div class="border-2 border-ink bg-white shadow-[4px_4px_0_0_#000] overflow-hidden">
@@ -361,27 +365,7 @@ export async function renderUnifiedPage(certId) {
                 </div>`;
         } else {
             // Branded fallback — always renders even when backend sends no artwork.
-            certVisualHtml = `
-                <div class="border-2 border-ink bg-white shadow-[4px_4px_0_0_#000] overflow-hidden">
-                    <div class="relative bg-ink text-white p-8 sm:p-12 text-center overflow-hidden">
-                        <div class="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(to_right,#5ce1e620_1px,transparent_1px),linear-gradient(to_bottom,#5ce1e620_1px,transparent_1px)] bg-[size:28px_28px]"></div>
-                        <div class="absolute top-0 left-0 right-0 h-2 bg-cyan"></div>
-                        <div class="absolute bottom-0 left-0 right-0 h-2 bg-cyan"></div>
-                        <p class="relative font-mono text-[10px] tracking-[0.35em] uppercase text-cyan font-bold mb-3">Haxnation · Verified Credential</p>
-                        <h3 class="relative font-black uppercase tracking-tight text-3xl sm:text-5xl leading-none mb-2">Certificate</h3>
-                        <p class="relative font-mono text-[11px] uppercase tracking-widest text-neutral-300 mb-8">of participation / achievement</p>
-                        <p class="relative font-mono text-[10px] uppercase tracking-widest text-neutral-400 mb-2">Proudly presented to</p>
-                        <p class="relative font-black uppercase text-2xl sm:text-4xl text-cyan break-words mb-6">${escapeHtml(holderName)}</p>
-                        <div class="relative inline-block border-2 border-cyan px-6 py-2 mb-6">
-                            <p class="font-mono text-xs uppercase tracking-widest font-bold text-white">${escapeHtml(eventName)}</p>
-                        </div>
-                        <div class="relative flex items-center justify-center gap-6 font-mono text-[10px] uppercase text-neutral-300">
-                            <span>ID · ${escapeHtml(String(certIdResolved).slice(0, 12))}</span>
-                            <span class="w-1 h-1 bg-cyan inline-block"></span>
-                            <span>${escapeHtml(formattedIssued)}</span>
-                        </div>
-                    </div>
-                </div>`;
+            certVisualHtml = fallbackHtml;
         }
 
         const extraRows = extraDataRows(data, ['holderName', 'name', 'eventName', 'event']);
@@ -512,6 +496,15 @@ export async function renderUnifiedPage(certId) {
                         done();
                     });
                 } else done();
+            };
+        }
+
+        // If the backend-handed artwork URL fails to load, swap in the branded fallback.
+        const certImg = document.getElementById('cert-visual-img');
+        if (certImg) {
+            certImg.onerror = () => {
+                document.querySelector('[data-cert-visual]')?.classList.add('hidden');
+                document.getElementById('cert-visual-fallback')?.classList.remove('hidden');
             };
         }
 
