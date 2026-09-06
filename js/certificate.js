@@ -371,44 +371,28 @@ function resolveDownloadUrl(dlRes, fallbackVisualUrl) {
         || dlRes.previewUrl || dlRes.url || dlRes.image || fallbackVisualUrl || null;
 }
 
-async function downloadCertFile(url, filename, status) {
-    const setStatus = (msg, isErr) => {
-        if (status) { status.textContent = msg; status.style.color = isErr ? '#ff2a2a' : '#0b0b0b'; }
-    };
-    // Data URLs can be downloaded directly.
-    if (url.startsWith('data:')) {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setStatus('[ SUCCESS: TRANSFER COMPLETE ]', false);
-        return true;
+async function downloadCachedImage(status) {
+    // Download the already-displayed (cached) image — NO second request,
+    // NO blob re-fetch through a proxy. This is the exact URL the working
+    // download endpoint returned and that the <img> already loaded.
+    const imgEl = document.getElementById('cert-visual-img');
+    const url = (imgEl && imgEl.src) || null;
+    if (!url) {
+        if (status) { status.textContent = '[ FAILURE: IMAGE NOT LOADED ]'; status.style.color = '#ff2a2a'; }
+        return;
     }
-    // Same-origin / CORS-enabled remote image → fetch as blob so the file
-    // actually downloads instead of opening in a tab.
-    try {
-        const resp = await fetch(url, { credentials: 'include' });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const blob = await resp.blob();
-        const objUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = objUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
-        setStatus('[ SUCCESS: TRANSFER COMPLETE ]', false);
-        return true;
-    } catch (e) {
-        // CORS-blocked cross-origin: fall back to opening the rendered image
-        // in a new tab so the user can long-press / right-click save.
-        window.open(url, '_blank', 'noopener');
-        setStatus('[ OPENED IN NEW TAB — SAVE FROM THERE ]', false);
-        return true;
-    }
+    const filename = downloadUrlFilename(url, 'certificate');
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    // Remote (non-data:) URLs: open in new tab as fallback if the browser
+    // refuses cross-origin `download` — same as the original working button.
+    if (!url.startsWith('data:')) link.target = '_blank';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (status) { status.textContent = '[ SUCCESS: TRANSFER COMPLETE ]'; status.style.color = '#0b0b0b'; }
 }
 
 export async function renderUnifiedPage(certId) {
@@ -456,7 +440,18 @@ export async function renderUnifiedPage(certId) {
 
         // The certificate shown here is ALWAYS the rendered image from the
         // backend — never a locally-built placeholder component.
-        const certImageUrl = visual && visual.kind === 'image' ? visual.url : null;
+        // Source of truth for that URL is the SAME working download endpoint
+        // the download button used: fetch it ONCE here (owner only) when the
+        // public verify payload carries no artwork, then render + cache it.
+        let certImageUrl = visual && visual.kind === 'image' ? visual.url : null;
+        if (!certImageUrl && isOwner && fetchedEventId) {
+            try {
+                const dlRes = await api(`/events/${fetchedEventId}/certificate/download`, 'POST');
+                certImageUrl = resolveDownloadUrl(dlRes, null);
+            } catch (e) {
+                console.warn('Certificate artwork fetch failed:', e);
+            }
+        }
         let certVisualHtml;
         if (certImageUrl) {
             certVisualHtml = `
@@ -626,7 +621,10 @@ export async function renderUnifiedPage(certId) {
         ensureCertPrintStyles();
 
         const printBtn = document.getElementById('btn-print');
-        if (printBtn) printBtn.onclick = () => printCertImage(certImageUrl, holderName);
+        if (printBtn) printBtn.onclick = () => printCertImage(
+            (document.getElementById('cert-visual-img') || {}).src || certImageUrl,
+            holderName
+        );
 
         try {
             const qrCanvas = document.getElementById('verify-qr');
@@ -639,41 +637,11 @@ export async function renderUnifiedPage(certId) {
         if (btnDownload) {
             if (!isOwner) btnDownload.style.display = 'none';
             else {
-                btnDownload.onclick = async function () {
-                    const btn = this;
+                // No re-request: download the cached/displayed image.
+                btnDownload.onclick = function () {
                     const status = document.getElementById('status-msg');
-                    const origLabel = 'DOWNLOAD IMAGE';
-                    btn.disabled = true;
-                    btn.textContent = 'PROCESSING...';
-                    if (status) { status.textContent = '[ ESTABLISHING SECURE CONNECTION... ]'; status.style.color = '#0b0b0b'; }
-
-                    try {
-                        const dlRes = await api(`/events/${fetchedEventId}/certificate/download`, 'POST');
-                        const fileUrl = resolveDownloadUrl(dlRes, certImageUrl);
-                        if (fileUrl) {
-                            const filename = downloadUrlFilename(fileUrl, `certificate_${String(certIdResolved).slice(0, 12)}`);
-                            await downloadCertFile(fileUrl, filename, status);
-                            btn.textContent = 'RE-DOWNLOAD';
-                        } else {
-                            throw new Error('Data invalid');
-                        }
-                    } catch (e) {
-                        // If the download API fails but we already have the
-                        // rendered image URL from verify, download that directly.
-                        if (certImageUrl) {
-                            try {
-                                const filename = downloadUrlFilename(certImageUrl, `certificate_${String(certIdResolved).slice(0, 12)}`);
-                                await downloadCertFile(certImageUrl, filename, status);
-                                btn.textContent = 'RE-DOWNLOAD';
-                                return;
-                            } catch (_) { /* fall through to error */ }
-                        }
-                        if (status) { status.textContent = `[ FAILURE: ${e.message.toUpperCase()} ]`; status.style.color = '#ff2a2a'; }
-                        btn.textContent = 'RETRY EXECUTION';
-                    } finally {
-                        btn.disabled = false;
-                        if (btn.textContent === 'PROCESSING...') btn.textContent = origLabel;
-                    }
+                    downloadCachedImage(status);
+                    this.textContent = 'RE-DOWNLOAD';
                 };
             }
         }
