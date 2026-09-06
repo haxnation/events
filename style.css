@@ -15,6 +15,20 @@
 /* Base resets & utilities */
 .hidden { display: none !important; }
 
+/* Certificate verify page — never allow horizontal blowout from long IDs/URLs */
+#app { overflow-x: clip; }
+#app img { max-width: 100%; height: auto; }
+#app table { max-width: 100%; }
+#app td, #app code { overflow-wrap: anywhere; word-break: break-word; }
+
+/* Print: only the rendered certificate image, never the verification UI */
+#cert-print-area { display: none; }
+@media print {
+    body.print-cert-only #cert-screen-view { display: none !important; }
+    body.print-cert-only #cert-print-area { display: block !important; }
+    #cert-print-area { display: none; }
+}
+
 /* Brutalist Scrollbar */
 ::-webkit-scrollbar { 
     width: 12px; 
