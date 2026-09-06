@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './config.js';
+import { API_BASE_URL, HAX_SITE_API_KEY } from './config.js';
 
 export function toggleModal(id, show) {
     const el = document.getElementById(id);
@@ -30,7 +30,9 @@ export async function api(endpoint, method = 'GET', body = null) {
     const options = {
         method,
         credentials: 'include',
-        headers: {},
+        headers: {
+            'X-API-KEY': HAX_SITE_API_KEY,
+        },
     };
     if (body) {
         options.headers['Content-Type'] = 'application/json';
