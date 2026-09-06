@@ -371,30 +371,6 @@ function resolveDownloadUrl(dlRes, fallbackVisualUrl) {
         || dlRes.previewUrl || dlRes.url || dlRes.image || fallbackVisualUrl || null;
 }
 
-async function downloadCachedImage(status) {
-    // Download the already-displayed (cached) image — NO second request,
-    // NO blob re-fetch through a proxy. This is the exact URL the working
-    // download endpoint returned and that the <img> already loaded.
-    const imgEl = document.getElementById('cert-visual-img');
-    const url = (imgEl && imgEl.src) || null;
-    if (!url) {
-        if (status) { status.textContent = '[ FAILURE: IMAGE NOT LOADED ]'; status.style.color = '#ff2a2a'; }
-        return;
-    }
-    const filename = downloadUrlFilename(url, 'certificate');
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    // Remote (non-data:) URLs: open in new tab as fallback if the browser
-    // refuses cross-origin `download` — same as the original working button.
-    if (!url.startsWith('data:')) link.target = '_blank';
-    link.rel = 'noopener';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    if (status) { status.textContent = '[ SUCCESS: TRANSFER COMPLETE ]'; status.style.color = '#0b0b0b'; }
-}
-
 export async function renderUnifiedPage(certId) {
     const container = document.getElementById('app');
 
@@ -438,41 +414,45 @@ export async function renderUnifiedPage(certId) {
         const holderName = (data && typeof data === 'object' && (data.holderName || data.name)) || owner || 'UNKNOWN';
         const eventName = (data && typeof data === 'object' && (data.eventName || data.event)) || event || 'UNKNOWN';
 
-        // The certificate shown here is ALWAYS the rendered image from the
-        // backend — never a locally-built placeholder component.
-        // Source of truth for that URL is the SAME working download endpoint
-        // the download button used: fetch it ONCE here (owner only) when the
-        // public verify payload carries no artwork, then render + cache it.
-        let certImageUrl = visual && visual.kind === 'image' ? visual.url : null;
-        if (!certImageUrl && isOwner && fetchedEventId) {
+        // The displayed cert is the ACTUAL issued file — the exact `dataUrl`
+        // the original working Download button used:
+        //   POST /events/<eventId>/certificate/download → dlRes.dataUrl
+        // Verify-payload artwork (template.backgroundImage etc.) is only the
+        // blank TEMPLATE, so it is NEVER preferred for the owner view.
+        const isPdfUrl = (u) => typeof u === 'string' &&
+            (/\.pdf(\?|$)/i.test(u) || u.startsWith('data:application/pdf'));
+        let certFileUrl = null;
+        if (isOwner && fetchedEventId) {
             try {
                 const dlRes = await api(`/events/${fetchedEventId}/certificate/download`, 'POST');
-                certImageUrl = resolveDownloadUrl(dlRes, null);
+                certFileUrl = resolveDownloadUrl(dlRes, null);
             } catch (e) {
-                console.warn('Certificate artwork fetch failed:', e);
+                console.warn('Certificate file fetch failed:', e);
             }
         }
+        if (!certFileUrl && visual) certFileUrl = visual.url; // public view fallback
+        const certIsPdf = isPdfUrl(certFileUrl);
         let certVisualHtml;
-        if (certImageUrl) {
+        if (certFileUrl && !certIsPdf) {
             certVisualHtml = `
                 <div class="border-2 border-ink bg-white shadow-[4px_4px_0_0_#000] overflow-hidden max-w-full" data-cert-visual>
-                    <img id="cert-visual-img" src="${escapeHtml(certImageUrl)}" alt="Issued certificate for ${escapeHtml(holderName)}"
+                    <img id="cert-visual-img" src="${escapeHtml(certFileUrl)}" alt="Issued certificate for ${escapeHtml(holderName)}"
                          class="w-full max-w-full h-auto object-contain block" loading="eager" referrerpolicy="no-referrer" />
                 </div>
                 <div id="cert-visual-missing" class="hidden">${missingArtworkHTML(certIdResolved)}</div>`;
-        } else if (visual && visual.kind === 'pdf') {
-            // Legacy fallback: backend used to hand out PDFs. Show a download
-            // prompt instead of embedding a PDF reader.
+        } else if (certFileUrl && certIsPdf) {
+            // Issued file is a PDF (what the old Download PDF button saved):
+            // embed the SAME dataUrl so the preview is the real cert.
             certVisualHtml = `
-                <div class="border-2 border-ink bg-white shadow-[4px_4px_0_0_#000] overflow-hidden max-w-full">
-                    <div class="p-8 text-center">
-                        <p class="font-mono text-xs font-bold uppercase tracking-widest text-ink mb-3">[ Legacy PDF credential ]</p>
-                        <a href="${escapeHtml(visual.url)}" target="_blank" rel="noopener" class="inline-block font-mono uppercase tracking-widest font-bold bg-cyan text-ink border-2 border-ink px-6 py-3 shadow-[4px_4px_0_0_#000] text-sm">Open PDF</a>
-                    </div>
-                </div>`;
+                <div class="border-2 border-ink bg-white shadow-[4px_4px_0_0_#000] overflow-hidden max-w-full" data-cert-visual>
+                    <iframe id="cert-visual-pdf" src="${escapeHtml(certFileUrl)}" title="Issued certificate for ${escapeHtml(holderName)}"
+                            class="w-full block bg-white" style="height: 600px; border: 0;"></iframe>
+                </div>
+                <div id="cert-visual-missing" class="hidden">${missingArtworkHTML(certIdResolved)}</div>`;
         } else {
             certVisualHtml = missingArtworkHTML(certIdResolved);
         }
+        const downloadLabel = certIsPdf ? 'Download PDF' : 'Download Image';
 
         const extraRows = extraDataRows(data, ['holderName', 'name', 'eventName', 'event']);
         const templateName = template && typeof template === 'object' && (template.name || template.title)
@@ -499,7 +479,7 @@ export async function renderUnifiedPage(certId) {
                                 <div class="mt-4 flex flex-wrap items-stretch gap-3">
                                     ${isOwner ? `
                                     <button id="btn-download" class="flex-1 min-w-[200px] font-mono uppercase tracking-widest font-bold bg-cyan text-ink border-2 border-ink px-6 py-3 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75 text-center text-sm">
-                                        Download Image
+                                        ${downloadLabel}
                                     </button>` : ''}
                                     <button id="btn-print" class="font-mono uppercase tracking-widest font-bold bg-white text-ink border-2 border-ink px-6 py-3 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75 text-sm">
                                         Print
@@ -583,7 +563,7 @@ export async function renderUnifiedPage(certId) {
                 </div>
             </div>
             <div id="cert-print-area">
-                ${certImageUrl ? `<img src="${escapeHtml(certImageUrl)}" alt="Certificate" style="width:100%;height:auto;" />` : ``}
+                ${certFileUrl && !certIsPdf ? `<img src="${escapeHtml(certFileUrl)}" alt="Certificate" style="width:100%;height:auto;" />` : ``}
             </div>`;
 
         const copyBtn = document.getElementById('btn-copy');
@@ -621,10 +601,7 @@ export async function renderUnifiedPage(certId) {
         ensureCertPrintStyles();
 
         const printBtn = document.getElementById('btn-print');
-        if (printBtn) printBtn.onclick = () => printCertImage(
-            (document.getElementById('cert-visual-img') || {}).src || certImageUrl,
-            holderName
-        );
+        if (printBtn) printBtn.onclick = () => printCertImage(certFileUrl, holderName);
 
         try {
             const qrCanvas = document.getElementById('verify-qr');
@@ -637,10 +614,21 @@ export async function renderUnifiedPage(certId) {
         if (btnDownload) {
             if (!isOwner) btnDownload.style.display = 'none';
             else {
-                // No re-request: download the cached/displayed image.
+                // No re-request: download the SAME cached dataUrl rendered above
+                // (exactly what the original working button saved).
                 btnDownload.onclick = function () {
                     const status = document.getElementById('status-msg');
-                    downloadCachedImage(status);
+                    if (!certFileUrl) {
+                        if (status) { status.textContent = '[ FAILURE: FILE NOT LOADED ]'; status.style.color = '#ff2a2a'; }
+                        return;
+                    }
+                    const link = document.createElement('a');
+                    link.href = certFileUrl;
+                    link.download = downloadUrlFilename(certFileUrl, `certificate_${String(certIdResolved).slice(0, 12)}`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    if (status) { status.textContent = '[ SUCCESS: TRANSFER COMPLETE ]'; status.style.color = '#0b0b0b'; }
                     this.textContent = 'RE-DOWNLOAD';
                 };
             }
