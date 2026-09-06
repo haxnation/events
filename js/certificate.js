@@ -55,7 +55,7 @@ export async function renderCheckoutPage() {
                 </span>
             </div>`;
             try {
-                const dlRes = await api(`/events/${eventId}/certificate/download`, 'POST', { orderId: orderIdParam });
+                const dlRes = await api(`/events/${eventId}/certificate/download?orderId=${encodeURIComponent(orderIdParam)}`);
                 if (dlRes && dlRes.certId) certId = dlRes.certId;
                 window.location.replace(`/#/certificate/verify/${certId}`);
                 return;
@@ -170,7 +170,7 @@ export async function renderCheckoutPage() {
                         if (checkoutRes.already_paid) {
                             status.textContent = '[ PREVIOUS PAYMENT FOUND. RECOVERING... ]';
                             status.style.color = '#0b0b0b';
-                            const dlRes = await api(`/events/${eventId}/certificate/download`, 'POST', { orderId: checkoutRes.order_id });
+                            const dlRes = await api(`/events/${eventId}/certificate/download?orderId=${encodeURIComponent(checkoutRes.order_id)}`);
                             if (dlRes && dlRes.certId) certId = dlRes.certId;
                         } else if (checkoutRes.gateway === 'PHONEPE') {
                             status.textContent = '[ REDIRECTING TO SECURE PAYMENT... ]';
@@ -200,13 +200,13 @@ export async function renderCheckoutPage() {
 
                             // Trigger the backend to verify orderId and issue the cert
                             const orderId = checkoutRes.order_id;
-                            const dlRes = await api(`/events/${eventId}/certificate/download`, 'POST', { orderId });
+                            const dlRes = await api(`/events/${eventId}/certificate/download?orderId=${encodeURIComponent(orderId)}`);
                             if (dlRes && dlRes.certId) certId = dlRes.certId;
                         }
                     } else {
                         status.textContent = '[ ISSUING CREDENTIAL... ]';
                         status.style.color = '#0b0b0b';
-                        const dlRes = await api(`/events/${eventId}/certificate/download`, 'POST', {});
+                        const dlRes = await api(`/events/${eventId}/certificate/download`);
                         if (dlRes && dlRes.certId) certId = dlRes.certId;
                     }
                     
@@ -416,7 +416,7 @@ export async function renderUnifiedPage(certId) {
 
         // The displayed cert is the ACTUAL issued file — the exact `dataUrl`
         // the original working Download button used:
-        //   POST /events/<eventId>/certificate/download → dlRes.dataUrl
+        //   GET /events/<eventId>/certificate/download → dlRes.dataUrl
         // Verify-payload artwork (template.backgroundImage etc.) is only the
         // blank TEMPLATE, so it is NEVER preferred for the owner view.
         const isPdfUrl = (u) => typeof u === 'string' &&
@@ -424,7 +424,7 @@ export async function renderUnifiedPage(certId) {
         let certFileUrl = null;
         if (isOwner && fetchedEventId) {
             try {
-                const dlRes = await api(`/events/${fetchedEventId}/certificate/download`, 'POST');
+                const dlRes = await api(`/events/${fetchedEventId}/certificate/download`);
                 certFileUrl = resolveDownloadUrl(dlRes, null);
             } catch (e) {
                 console.warn('Certificate file fetch failed:', e);
