@@ -1,6 +1,41 @@
 import { api, escapeHtml } from './utils.js';
 import { API_BASE_URL } from './config.js';
 
+function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+}
+
+function isRetryableDownloadError(msg) {
+    const m = String(msg || '');
+    if (/PAYMENT_FAILED/i.test(m)) return false;
+    return /PAYMENT_PENDING|VERIFY_UPSTREAM|NOT SUCCESSFUL OR PENDING|NOT SUCCESSFUL|STILL PROCESSING|COULD NOT CONFIRM|HTTP 502|HTTP 503|HTTP 504|NETWORK|FAILED TO FETCH|LOAD FAILED|TRANSIENT/i.test(m);
+}
+
+// Gateway settlement is async: the modal/redirect often returns before the
+// provider flips to PAID. Poll retryable states instead of failing on attempt #1.
+async function downloadWithRetry(eventId, orderId, onAttempt) {
+    const delays = [2000, 3000, 5000, 8000, 8000, 10000];
+    let lastErr = 'Unknown error';
+    const url = orderId
+        ? `/events/${eventId}/certificate/download?orderId=${encodeURIComponent(orderId)}`
+        : `/events/${eventId}/certificate/download`;
+    for (let attempt = 0; attempt < delays.length + 1; attempt++) {
+        if (onAttempt) onAttempt(attempt + 1, delays.length + 1);
+        try {
+            const res = await api(url);
+            return { ok: true, res };
+        } catch (e) {
+            lastErr = e?.message || 'Download failed';
+            if (isRetryableDownloadError(lastErr) && attempt < delays.length) {
+                await sleep(delays[attempt]);
+                continue;
+            }
+            return { ok: false, error: lastErr, retryable: isRetryableDownloadError(lastErr) };
+        }
+    }
+    return { ok: false, error: lastErr, retryable: true };
+}
+
 export async function renderCheckoutPage() {
     const rawParams = window.location.search ? window.location.search.slice(1) : (window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '');
     const params = new URLSearchParams(rawParams);
@@ -50,22 +85,33 @@ export async function renderCheckoutPage() {
         if (orderIdParam) {
             container.innerHTML = `
             <div class="min-h-screen bg-canvas flex items-center justify-center">
-                <span class="font-mono text-xl uppercase tracking-widest font-bold text-ink bg-cyan px-2 py-1 border-2 border-ink animate-pulse shadow-[4px_4px_0_0_#000]">
+                <span id="ev-verify-status" class="font-mono text-xl uppercase tracking-widest font-bold text-ink bg-cyan px-2 py-1 border-2 border-ink animate-pulse shadow-[4px_4px_0_0_#000]">
                     VERIFYING PAYMENT...
                 </span>
             </div>`;
-            try {
-                const dlRes = await api(`/events/${eventId}/certificate/download?orderId=${encodeURIComponent(orderIdParam)}`);
+            const setEvText = (t) => {
+                const el = document.getElementById('ev-verify-status');
+                if (el) el.textContent = t;
+            };
+            const out = await downloadWithRetry(eventId, orderIdParam, (a, n) =>
+                setEvText(`VERIFYING PAYMENT... ${a}/${n}`));
+            if (out.ok) {
+                const dlRes = out.res;
                 if (dlRes && dlRes.certId) certId = dlRes.certId;
                 window.location.replace(`/#/certificate/verify/${certId}`);
                 return;
-            } catch (e) {
-                console.error("Payment verification failed", e);
+            }
+            console.error("Payment verification failed", out.error);
+            if (out.retryable) {
+                setEvText(`PAYMENT STILL SETTLING (ORDER ${orderIdParam}). RETRYING FROM THIS PAGE...`);
+                await sleep(3000);
+            }
+            {
                 const currentHash = window.location.hash;
                 const newHash = currentHash.includes('?') ? currentHash + '&eventId=' + eventId : currentHash + '?eventId=' + eventId;
                 window.location.hash = newHash;
-                // allow it to fall through and render the page normally
             }
+            // allow it to fall through and render the page normally
         }
 
         container.innerHTML = `
@@ -170,8 +216,11 @@ export async function renderCheckoutPage() {
                         if (checkoutRes.already_paid) {
                             status.textContent = '[ PREVIOUS PAYMENT FOUND. RECOVERING... ]';
                             status.style.color = '#0b0b0b';
-                            const dlRes = await api(`/events/${eventId}/certificate/download?orderId=${encodeURIComponent(checkoutRes.order_id)}`);
-                            if (dlRes && dlRes.certId) certId = dlRes.certId;
+                            const rec = await downloadWithRetry(eventId, checkoutRes.order_id, (a, n) => {
+                                status.textContent = `[ RECOVERING... ${a}/${n} ]`;
+                            });
+                            if (!rec.ok) throw new Error(rec.error);
+                            if (rec.res && rec.res.certId) certId = rec.res.certId;
                         } else if (checkoutRes.gateway === 'PHONEPE') {
                             status.textContent = '[ REDIRECTING TO SECURE PAYMENT... ]';
                             window.location.href = checkoutRes.redirect_url;
@@ -200,8 +249,15 @@ export async function renderCheckoutPage() {
 
                             // Trigger the backend to verify orderId and issue the cert
                             const orderId = checkoutRes.order_id;
-                            const dlRes = await api(`/events/${eventId}/certificate/download?orderId=${encodeURIComponent(orderId)}`);
-                            if (dlRes && dlRes.certId) certId = dlRes.certId;
+                            const dl = await downloadWithRetry(eventId, orderId, (a, n) => {
+                                status.textContent = `[ VERIFYING PAYMENT... ${a}/${n} (GATEWAY MAY TAKE ~30S) ]`;
+                            });
+                            if (!dl.ok) {
+                                throw new Error(dl.retryable
+                                    ? dl.error + `. If you were charged, retry with order ${orderId}`
+                                    : dl.error);
+                            }
+                            if (dl.res && dl.res.certId) certId = dl.res.certId;
                         }
                     } else {
                         status.textContent = '[ ISSUING CREDENTIAL... ]';
